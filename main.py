@@ -1,37 +1,63 @@
-from fastapi import FastAPI, HTTPException, Header
-import time
+from fastapi import FastAPI, Header, HTTPException, status
+from pydantic import BaseModel, EmailStr
+import re
 
 app = FastAPI(
-    title="Mi API de Datos B2B",
-    description="Servidor de micro-servicios monetizable",
+    title="API B2B - Validación de Datos de Clientes",
+    description="Servicio micro-SaaS para validar correos, teléfonos y documentos de identidad.",
     version="1.0.0"
 )
 
-# Clave de prueba inicial
+# Clave de API de prueba para tus clientes
 API_KEY_VALIDA = "clave_secreta_demo_123"
 
-@app.get("/")
-def inicio():
-    return {
-        "estado": "Servidor Activo",
-        "mensaje": "Bienvenido al centro de datos B2B"
-    }
+# Estructura de los datos que enviará el cliente
+class SolicitudValidacion(BaseModel):
+    correo: str
+    telefono: str
+    documento: str
 
-@app.get("/v1/obtener-datos")
-def obtener_datos(x_api_key: str = Header(None)):
+@app.post("/v1/validar-cliente")
+def validar_cliente(datos: SolicitudValidacion, x_api_key: str = Header(None)):
+    # 1. Seguridad: Verificar la clave API del cliente
     if x_api_key != API_KEY_VALIDA:
         raise HTTPException(
-            status_code=403, 
-            detail="Acceso denegado: API Key inválida o no proporcionada"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API Key inválida o no proporcionada"
         )
     
-    # Simulación de respuesta de datos en tiempo real
+    # 2. Validar Correo Electrónico
+    patron_correo = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+    correo_valido = bool(re.match(patron_correo, datos.correo.strip()))
+    
+    # 3. Validar y Formatear Teléfono Celular (Colombia - 10 dígitos)
+    telefono_limpio = re.sub(r"\D", "", datos.telefono)
+    telefono_valido = len(telefono_limpio) == 10 and telefono_limpio.startswith("3")
+    telefono_formateado = f"+57 {telefono_limpio[:3]} {telefono_limpio[3:6]} {telefono_limpio[6:]}" if telefono_valido else None
+    
+    # 4. Validar Documento / NIT (solo números, entre 6 y 10 dígitos)
+    documento_limpio = re.sub(r"\D", "", datos.documento)
+    documento_valido = 6 <= len(documento_limpio) <= 10
+
+    # Respuesta estructurada para la empresa cliente
+    es_valido_todo = correo_valido and telefono_valido and documento_valido
+
     return {
         "status": "exitoso",
-        "timestamp": time.time(),
-        "datos": {
-            "precio_mercado_usd": 125.50,
-            "tendencia": "Alcista",
-            "peticion_cobrada": "$0.001 USD"
+        "resultado_general": "APROBADO" if es_valido_todo else "RECHAZADO",
+        "detalles": {
+            "correo": {
+                "valor_recibido": datos.correo,
+                "es_valido": correo_valido
+            },
+            "telefonso": {
+                "valor_recibido": datos.telefono,
+                "es_valido": telefono_valido,
+                "formato_internacional": telefono_formateado
+            },
+            "documento": {
+                "valor_recibido": datos.documento,
+                "es_valido": documento_valido
+            }
         }
     }
