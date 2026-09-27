@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Header, HTTPException, status
-from pydantic import BaseModel
 import re
+from fastapi import FastAPI, HTTPException, status, Header
+from pydantic import BaseModel
 
 app = FastAPI(
     title="API B2B - Validación de Datos de Clientes",
@@ -9,7 +9,7 @@ app = FastAPI(
 )
 
 # Clave de API de prueba para tus clientes
-API_KEY_VALIDA = "clave_secreta_demo_123"
+API_KEY_VALIDA = "Clave_Secreta_Demo_123"
 
 # Estructura de los datos que enviará el cliente
 class SolicitudValidacion(BaseModel):
@@ -17,16 +17,9 @@ class SolicitudValidacion(BaseModel):
     telefono: str
     documento: str
 
-
-
-    # 2. Validar Correo Electrónico
-    patron_correo = r"^[\w\.-]+@[\w\.-]+\.\w+$"
-    correo_valido = bool(re.match(patron_correo, datos.correo.strip()))
-
-    # 3. Validar y Formatear Teléfono Celular (Colombia - 10 dígitos)
-    telefono_limpio @app.post("/v1/validar-cliente")
+@app.post("/v1/validar-cliente")
 def validar_cliente(
-    datos: SolicitudValidacion, 
+    datos: SolicitudValidacion,
     x_api_key: str = Header(..., alias="x-api-key")
 ):
     # 1. Seguridad: Verificar la clave API del cliente
@@ -34,7 +27,14 @@ def validar_cliente(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API Key inválida o no proporcionada"
-        )= re.sub(r"\D", "", datos.telefono)
+        )
+
+    # 2. Validar Correo Electrónico
+    patron_correo = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+    correo_valido = bool(re.match(patron_correo, datos.correo.strip()))
+
+    # 3. Validar y Formatear Teléfono Celular (Colombia - 10 dígitos)
+    telefono_limpio = re.sub(r"\D", "", datos.telefono)
     telefono_valido = len(telefono_limpio) == 10 and telefono_limpio.startswith("3")
     telefono_formateado = f"+57 {telefono_limpio[:3]} {telefono_limpio[3:6]} {telefono_limpio[6:]}" if telefono_valido else datos.telefono
 
