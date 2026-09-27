@@ -275,3 +275,13 @@ async def webhook_stripe(request: Request):
         conn.close()
 
     return {"status": "success"}
+fastapi
+uvicorn
+pydantic
+dnspython
+stripe
+import sqlite3
+import stripe
+import dns.resolver
+from fastapi import FastAPI, Header, HTTPException, Request
+from pydantic import BaseModel
